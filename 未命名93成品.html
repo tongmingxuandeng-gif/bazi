@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>八字神器·吴清238 横排终极版</title>
+<style>
+body{background:#1a1a1a;color:#CCC;font-family:sans-serif;text-align:center;margin:0;padding:0;overflow-x:hidden;font-size:105%;}
+#four-pillars{display:flex;justify-content:center;gap:35px;margin-top:8vh;font-size:38.4px;font-weight:bold;flex-wrap:wrap;}
+.pillar{display:flex;flex-direction:column;align-items:center;}
+#controls{margin:2.5vh auto;display:flex;justify-content:center;gap:16px;flex-wrap:wrap;max-width:90%;}
+button,select{font-size:13.44px;padding:8px 20px;background:#000;color:#CCC;border:2px solid #444;border-radius:6px;cursor:pointer;height:36.8px;}
+#monthSelect{background:#002200;border:2px solid #00BB00;color:#DAA520;} 
+#monthSelect option{background:#222;color:#DAA520;} 
+#timeContainer{margin-top:5px;font-size:15.12px;color:#888;font-weight:bold;display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;}
+#screenshotBtn{display:none;}
+#toggleRecordsBtn{font-size:13.44px;padding:6px 12px;background:#000;color:#CCC;border:2px solid #444;border-radius:6px;cursor:pointer;height:32px;}
+#time{display:inline-block;}
+#records{margin-top:12px;max-height:52vh;overflow-y:auto;overflow-x:hidden;padding:0 16px;text-align:left;-webkit-overflow-scrolling:touch;transition:max-height 0.3s;}
+.record-item{margin:8px 0;padding-bottom:6px;border-bottom:1px solid #333;display:flex;gap:8px;align-items:center;flex-wrap:nowrap;min-width:280px;line-height:1.5;font-weight:600;}
+.record-time{flex-shrink:0;min-width:115px;text-align:left;}
+.digital{color:#AAA;font-size:11.76px;}
+.jiazi{color:#CC9966;font-weight:bold;font-size:13.44px;margin-top:2px;}
+.record-note{flex-shrink:0;position:relative;width:60px;}
+.note-display{cursor:pointer;color:#AAA;display:inline-block;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;width:100%;font-size:12.6px;}
+.record-pillars{display:flex;gap:6px;flex-shrink:0;margin-right:4px;}
+.record-pillars .pillar{font-size:15.96px;}
+.copy-btn{padding:4.8px 9.6px;background:#333;border:1px solid #666;border-radius:4px;font-size:11.76px;cursor:pointer;flex-shrink:0;margin-left:0;}
+#copyToast{position:fixed;top:2vh;left:50%;transform:translateX(-50%);background:#333;color:#FFF;padding:6px 12px;border-radius:6px;font-size:14px;display:none;z-index:9999;}
+</style>
+</head>
+<body>
+<div id="four-pillars">
+  <div class="pillar" id="p1"></div>
+  <div class="pillar" id="p2"></div>
+  <div class="pillar" id="p3"></div>
+  <div class="pillar" id="p4"></div>
+</div>
+
+<div id="controls">
+  <button onclick="generate()">生成</button>
+  <select id="monthSelect">
+    <option>寅月</option><option>卯月</option><option>辰月</option><option>巳月</option>
+    <option>午月</option><option>未月</option><option>申月</option><option>酉月</option>
+    <option>戌月</option><option>亥月</option><option>子月</option><option>丑月</option>
+  </select>
+  <button onclick="exportFile()">导出记录</button>
+</div>
+
+<div id="timeContainer">
+  <div id="time"></div>
+  <button id="toggleRecordsBtn">记录收起</button>
+</div>
+
+<div id="records"></div>
+<div id="copyToast">复制成功</div>
+
+<script>
+const jiazi = ["甲子","乙丑","丙寅","丁卯","戊辰","己巳","庚午","辛未","壬申","癸酉","甲戌","乙亥","丙子","丁丑","戊寅","己卯","庚辰","辛巳","壬午","癸未","甲申","乙酉","丙戌","丁亥","戊子","己丑","庚寅","辛卯","壬辰","癸巳","甲午","乙未","丙申","丁酉","戊戌","己亥","庚子","辛丑","壬寅","癸卯","甲辰","乙巳","丙午","丁未","戊申","己酉","庚戌","辛亥","壬子","癸丑","甲寅","乙卯","丙辰","丁巳","戊午","己未","庚申","辛酉","壬戌","癸亥"];
+const color = {wood:'#4C8A4C',fire:'#B25555',earth:'#B89F68',metal:'#BFBFBF',water:'#4F7DAF'};
+const wx = {甲:'wood',乙:'wood',丙:'fire',丁:'fire',戊:'earth',己:'earth',庚:'metal',辛:'metal',壬:'water',癸:'water',
+            子:'water',丑:'earth',寅:'wood',卯:'wood',辰:'earth',巳:'fire',午:'fire',未:'earth',申:'metal',酉:'metal',戌:'earth',亥:'water'};
+let month = '亥月';
+document.getElementById('monthSelect').onchange = e => { month = e.target.value; e.target.style.color = '#DAA520'; };
+let recordsExpanded = true;
+
+function clock(){ 
+  const n = new Date();
+  const d = `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+  const t = `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+  document.getElementById('time').innerText = d + " " + t;
+}
+setInterval(clock,1000); clock();
+
+function colorize(p){ return `<span style="color:${color[wx[p[0]]]}">${p[0]}</span><span style="color:${color[wx[p[1]]]}">${p[1]}</span>`; }
+
+const baseDate = new Date(2025,10,11);
+function getDayGZ(date){ const diff = Math.floor((date - baseDate)/86400000); return jiazi[(20 + diff + 60*1000)%60]; }
+function getYearGZ(y){ return jiazi[(y - 1984 + 60) % 60]; }
+function getHourGZ(dayGZ,h){ const gan='甲乙丙丁戊己庚辛壬癸'; const dayIdx=gan.indexOf(dayGZ[0]); const ziIdx=Math.floor((h+1)/2)%12; return gan[(dayIdx*12+ziIdx)%10]+'子丑寅卯辰巳午未申酉戌亥'.charAt(ziIdx); }
+function getJiazi(){ let now = new Date(); if(now.getHours()>=23) now=new Date(now.getTime()+86400000); const y=now.getFullYear(); return {year:getYearGZ(y), month:month, day:getDayGZ(now), hour:getHourGZ(getDayGZ(now),now.getHours())}; }
+
+function generate(){
+  const rand=[]; for(let i=0;i<4;i++) rand.push(jiazi[Math.random()*60|0]);
+  for(let i=0;i<4;i++) document.getElementById('p'+(i+1)).innerHTML=colorize(rand[i]);
+  const jz=getJiazi(); const str=`${jz.year} ${jz.month} ${jz.day} ${jz.hour}`;
+  const rec=JSON.parse(localStorage.getItem('rec')||'[]'); rec.unshift({time:document.getElementById('time').innerText,jz:str,pillars:rand,note:''});
+  localStorage.setItem('rec',JSON.stringify(rec)); load();
+}
+
+function truncateNote(note){ if(!note) return '(未)'; return note.length>3?note.slice(0,3)+'…':note; }
+
+function load(){
+  const rec=JSON.parse(localStorage.getItem('rec')||'[]');
+  const displayed = recordsExpanded ? rec : rec.slice(0,1);
+  document.getElementById('records').innerHTML=displayed.map((r,i)=>`
+    <div class="record-item">
+      <div class="record-time">
+        <div class="digital">${r.time}</div>
+        <div class="jiazi">${r.jz}</div>
+      </div>
+      <div class="record-note"><span class="note-display" onclick="editNote(${i})">${truncateNote(r.note)}</span></div>
+      <div class="record-pillars">${r.pillars.map(p=>`<div class="pillar">${colorize(p)}</div>`).join('')}</div>
+      <button class="copy-btn" onclick="copy(${i})">复制</button>
+    </div>`).join('');
+  document.getElementById('toggleRecordsBtn').innerText = recordsExpanded ? '记录收起' : '记录展开';
+}
+
+function toggleRecords(){ recordsExpanded = !recordsExpanded; load(); }
+document.getElementById('toggleRecordsBtn').onclick = toggleRecords;
+
+function editNote(index){
+  const rec=JSON.parse(localStorage.getItem('rec')||'[]'); let current=rec[index].note||'';
+  const popup=document.createElement('div'); popup.style.position='fixed'; popup.style.top='50%'; popup.style.left='50%';
+  popup.style.transform='translate(-50%,-50%)'; popup.style.background='#222'; popup.style.padding='16px'; popup.style.border='2px solid #555';
+  popup.style.borderRadius='6px'; popup.style.zIndex=9999;
+  const ta=document.createElement('textarea'); ta.value=current; ta.maxLength=100;
+  ta.style.width='300px'; ta.style.height='100px'; ta.style.fontSize='14px'; ta.style.color='#CCC'; ta.style.background='#333'; ta.style.border='1px solid #555';
+  popup.appendChild(ta);
+  const saveBtn=document.createElement('button'); saveBtn.innerText='保存'; saveBtn.style.marginTop='8px';
+  saveBtn.onclick=()=>{ rec[index].note=ta.value; localStorage.setItem('rec',JSON.stringify(rec)); document.body.removeChild(popup); load(); };
+  popup.appendChild(saveBtn); document.body.appendChild(popup);
+}
+
+function copy(i){
+  const rec=JSON.parse(localStorage.getItem('rec')||'[]'); 
+  const t=`${rec[i].time} ${rec[i].jz} - - - ${rec[i].pillars.join('  ')} - - - ${rec[i].note||'(未备注)'}`;
+  if(navigator.clipboard){ navigator.clipboard.writeText(t).then(()=>showToast()); }else fallback(t);
+  function fallback(t){ const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity=0; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); showToast(); }
+}
+
+function showToast(){ 
+  const toast=document.getElementById('copyToast'); 
+  toast.style.display='block'; 
+  setTimeout(()=>{toast.style.display='none';},1000); 
+}
+
+async function exportFile(){
+  const rec=JSON.parse(localStorage.getItem('rec')||'[]'); if(!rec.length) return alert('无记录');
+  let now=new Date(); let timeStr=`${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  const defName=`随机四柱_${timeStr}.txt`; 
+  const name=prompt('输入文件名（可含中文）',defName)||defName;
+  let txt='时间\t八字\t随机四柱\t备注\n'; 
+  rec.forEach(r=> txt+=`${r.time}\t${r.jz} - - - ${r.pillars.join('  ')} - - - ${r.note||'(未备注)'}\n`);
+  const blob=new Blob(['\ufeff'+txt],{type:'text/plain;charset=utf-8'});
+  const url=URL.createObjectURL(blob); 
+  const a=document.createElement('a'); 
+  a.href=url;a.download=name.endsWith('.txt')?name:name+'.txt';
+  document.body.appendChild(a);a.click();document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+load();
+</script>
+</body>
+</html>
